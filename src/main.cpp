@@ -8,6 +8,7 @@
 #include <Adafruit_SSD1306.h>
 #include <ArduinoJson.h>
 #include <WebServer.h>
+#include <WebSocketsServer.h>
 
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASSWORD ""
@@ -21,6 +22,7 @@
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 WebServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(81);
 
 String web = R"HTML(
   <html>
@@ -34,8 +36,12 @@ String web = R"HTML(
       <button onclick="sendCmd('S')">Back (S)</button>
 
       <script>
+        var connection = new WebSocket('ws://' + location.hostname + ':8181/');
+
         function sendCmd(cmd) {
-          fetch('/cmd?c=' + cmd);
+          if (connection.readyState === WebSocket.OPEN) {
+            connection.send(cmd);
+          }
         }
 
         document.addEventListener('keydown', function(event) {
@@ -45,8 +51,11 @@ String web = R"HTML(
           if(event.key === 'd' || event.key === 'D') sendCmd('D');
           if(event.key === ' ') sendCmd('STOP'); 
         });
+
+        setInterval(function() {
+          sendCmd('ping');
+        }, 200);
       </script>
-      
     </body>
   </html>
 )HTML";
@@ -78,6 +87,31 @@ void initOLED() {
   oled.display(); 
 }
 
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  switch (type) {
+    case WStype_DISCONNECTED:
+      Serial.println("WS: DISCONNECTED");
+      break;
+    case WStype_CONNECTED:
+      Serial.println("WS: CONNECTED");
+      break;
+    case WStype_TEXT: {
+      String msg = String((char*)payload, length);
+      Serial.println(msg);
+
+      if (msg == "W") Serial.println("Would drive forward");
+      else if (msg == "S") Serial.println("Would drive backward");
+      else if (msg == "A") Serial.println("Would turn left");
+      else if (msg == "D") Serial.println("Would turn right");
+      else if (msg == "STOP") Serial.println("Would stop");
+      else if (msg == "ping") {}
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   initWiFi();
@@ -87,27 +121,15 @@ void setup() {
     server.send(200, "text/html", web);
   });
 
-  server.on("/favicon.ico", []() {
-    server.send(204);
-  });
-
-  server.on("/cmd", []() {
-    if (server.hasArg("c")) {
-      String msg = server.arg("c");
-      if (msg == "W") Serial.println("Would drive forward");
-      else if (msg == "S") Serial.println("Would drive backward");
-      else if (msg == "A") Serial.println("Would turn left");
-      else if (msg == "D") Serial.println("Would turn right");
-      else if (msg == "STOP") Serial.println("Would stop");
-    }
-    server.send(200, "text/plain", "OK");
-  });
-
   server.begin(); 
-  Serial.println("HTTP Server Started!");
+  webSocket.begin(); 
+  webSocket.onEvent(webSocketEvent); 
+
+  Serial.println("HTTP & WebSocket Servers Started!");
 }
 
 void loop() {
   server.handleClient();
+  webSocket.loop();
   delay(2);
 }
