@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "author": "Irene Runsewe",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-breadboard-half", "id": "bb1", "top": 313.8, "left": -93.2, "attrs": {} },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 24.04, "attrs": {} },
+    { "type": "wokwi-mpu6050", "id": "imu1", "top": 32.62, "left": -199.28, "attrs": {} },
+    { "type": "wokwi-hc-sr04", "id": "ultrasonic1", "top": 155.1, "left": 399.1, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": 134.7, "left": -226.2, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": 367.94,
+      "left": 269.03,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    { "type": "chip-l298n", "id": "driver1", "top": -56.58, "left": -244.8, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:3V3", "bb1:tp.1", "red", [ "h-86.25", "v297.6" ] ],
+    [ "esp:CMD", "bb1:tn.2", "black", [ "h0" ] ],
+    [ "bb1:tn.25", "oled1:GND", "black", [ "v-0.1", "h97.6" ] ],
+    [ "bb1:tp.25", "oled1:VCC", "red", [ "v0.3", "h107.2" ] ],
+    [ "oled1:SCL", "esp:22", "gold", [ "v0" ] ],
+    [ "esp:21", "oled1:SDA", "green", [ "h115.2", "v0", "h96" ] ]
+  ],
+  "dependencies": { "chip-l298n": "github:drf5n/Wokwi-Chip-L298N@1.0.5" }
+}
