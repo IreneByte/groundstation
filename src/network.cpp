@@ -1,3 +1,5 @@
+#include "fault_system.h"
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -48,6 +50,7 @@ String web = R"HTML(
 )HTML";
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  processWebSocket(type);
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.println("WS: DISCONNECTED");
@@ -127,4 +130,9 @@ void handleTelemetry(WebSocketsServer &webSocket, float currentPitch, float curr
     lastBroadcast = millis();
     sendTelemetry(currentPitch, currentRoll);
   }
+}
+
+void triggerAlert(const char* errorCode) {
+    Serial.println(errorCode); 
+    webSocket.broadcastTXT(errorCode);
 }

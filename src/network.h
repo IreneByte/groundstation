@@ -8,3 +8,4 @@ void webSocketEvent();
 void initNetwork();
 void updateNetwork();
 String buildTelemetryJSON(float currentPitch, float currentRoll);
+void triggerAlert(const char* errorCode);
