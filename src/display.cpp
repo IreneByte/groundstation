@@ -23,3 +23,24 @@ void initOLED() {
   oled.println(WiFi.localIP()); 
   oled.display(); 
 }
+
+void printOLED(const char* message) {
+  oled.clearDisplay();
+  oled.println(F(message));
+}
+
+void updateOLEDStatus(String state, const char* fault) {
+  oled.clearDisplay();
+  oled.setTextSize(1);
+  oled.setTextColor(SSD1306_WHITE);
+
+  oled.setCursor(0, 0);
+  oled.print(F("State: "));
+  oled.println(state);
+
+  oled.setCursor(0, 16);
+  oled.print(F("Fault: "));
+  oled.println(fault);
+
+  oled.display();
+}

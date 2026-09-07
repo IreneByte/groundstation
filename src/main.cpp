@@ -1,6 +1,7 @@
 #include "display.h"
 #include "mpu_sensor.h"
 #include "network.h"
+#include "fault_system.h"
 
 #include <Arduino.h>
 #include <stdio.h>
@@ -15,4 +16,11 @@ void setup() {
 
 void loop() {
   updateNetwork();
+
+  stateTransitions();
+  stateLogic();
+
+  handleTelemetry(webSocket, 0.0, 0.0);
+
+  delay(10);
 }

@@ -1,3 +1,4 @@
+#include "network.h"
 #include "fault_system.h"
 
 #include <Arduino.h>
@@ -12,6 +13,7 @@
 
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
+unsigned long lastPingTime;
 
 String web = R"HTML(
   <html>
@@ -23,6 +25,10 @@ String web = R"HTML(
       <button onclick="sendCmd('STOP')">STOP</button>
       <button onclick="sendCmd('D')">Right (D)</button><br><br>
       <button onclick="sendCmd('S')">Back (S)</button>
+
+      <h2>Fault Status: <span id="faultCode">None</span></h2>
+      <button onclick="sendCmd('ACK')">ACK Fault</button>
+      <button onclick="sendCmd('RESET')">RESET System</button><br><br>
 
       <script>
         var connection = new WebSocket('ws://' + location.hostname + ':8181/');
@@ -44,13 +50,20 @@ String web = R"HTML(
         setInterval(function() {
           sendCmd('ping');
         }, 200);
+
+        connection.onmessage = function(event) {
+          if (event.data.startsWith('F') || event.data.startsWith('W')) {
+            document.getElementById("faultCode").innerText = event.data;
+          } else if (event.data === "CLEAR") {
+            document.getElementById("faultCode").innerText = "None";
+          }
+        };
       </script>
     </body>
   </html>
 )HTML";
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-  processWebSocket(type);
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.println("WS: DISCONNECTED");
@@ -67,7 +80,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       else if (msg == "A") Serial.println("Would turn left");
       else if (msg == "D") Serial.println("Would turn right");
       else if (msg == "STOP") Serial.println("Would stop");
-      else if (msg == "ping") {}
+      else if (msg == "ACK") Serial.println("Dashboard ACK received");
+      else if (msg == "RESET") {
+        Serial.println("Dashboard RESET received");
+        faultActive = false;
+      }
+      else if (msg == "ping") lastPingTime = millis();
       break;
     }
     default:
@@ -106,19 +124,19 @@ void updateNetwork() {
 }
 
 void sendTelemetry(float currentPitch, float currentRoll) {
-    String json = "{";
-    json += "\"state\":\"MANUAL\",";
-    json += "\"speed_left\":\"N/A\",";
-    json += "\"speed_right\":\"N/A\",";
-    json += "\"pitch\":" + String(currentPitch, 2) + ",";
-    json += "\"roll\":" + String(currentRoll, 2) + ",";
-    json += "\"heading\":\"N/A\",";
-    json += "\"obstacle_cm\":\"N/A\",";
-    json += "\"temperature\":\"N/A\",";
-    json += "\"humidity\":\"N/A\",";
-    json += "\"fault\":null,";
-    json += "\"uptime_ms\":" + String(millis());
-    json += "}";
+    String json = R"json({
+        "state": ")" + getStateString() + R"json(",
+        "speed_left": "N/A",
+        "speed_right": "N/A",
+        "pitch": )" + String(currentPitch, 2) + R"json(,
+        "roll": )" + String(currentRoll, 2) + R"json(,
+        "heading": "N/A",
+        "obstacle_cm": "N/A",
+        "temperature": "N/A",
+        "humidity": "N/A",
+        "fault": null,
+        "uptime_ms": )" + String(millis()) + R"json(
+    })json";
 
     webSocket.broadcastTXT(json);
 }
