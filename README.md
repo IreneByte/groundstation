@@ -1,7 +1,7 @@
 # Groundstation
 
-Groundstation is an ESP32 firmware project for a WiFi-controlled robot. It uses a finite state machine to manage sensor data, a web dashboard, and automatic fault handling instead of using messy `if` statements.
-<br/> <br/>
+ESP32 firmware for a WiFi-controlled robot using sensor fusion and a PID control loop. Uses a finite state machine for sensor data, a web dashboard, and fault handling.
+
 ![Platform](https://img.shields.io/badge/Platform-ESP32-%233186A0?style=flat-square)
 ![Environment](https://img.shields.io/badge/Environment-VSCode-007ACC?style=flat-square)
 ![Framework](https://img.shields.io/badge/Framework-PlatformIO-F48225?style=flat-square)
@@ -9,121 +9,69 @@ Groundstation is an ESP32 firmware project for a WiFi-controlled robot. It uses 
 ![Comms](https://img.shields.io/badge/Comms-WebSocket-blue?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Complete-success?style=flat-square)
 
-### Wokwi Simulation
+## Wokwi Diagram
 <div align="left">
-  <img width="70%" src="images/wokwi-simulation.png" alt="Wokwi State Diagram">
+  <img width="70%" src="images/wokwi-simulation.png" alt="Wokwi Diagram">
 </div>
 
 ## What It Does
 
-When the ESP32 turns on, it connects to WiFi and starts a web server. A user can open the web page in a browser to see live telemetry data update every 100ms through a WebSocket connection. The web page also sends drive commands to the robot using WASD keys or buttons on the screen.
+When the ESP32 turns on, it connects to WiFi and starts a web server. Open the web page in a browser to see telemetry update every 100ms (10 Hz) with WebSocket. Drive commands are sent using WASD keys or the buttons on the webpage.
 
-The robot uses several sensors to measure its environment:
-* An HC-SR04 ultrasonic sensor measures distance.
-* A DHT22 sensor measures temperature.
-* An MPU6050 accelerometer and gyroscope measures tilt, using a filter to calculate pitch and roll.
-* An SSD1306 OLED screen displays the current system state and fault codes directly on the robot.
+Sensors:
+* HC-SR04 ultrasonic measures distance.
+* DHT22 measures temperature.
+* MPU6050 accelerometer and gyroscope handles tilt (pitch & roll) with a complementary filter.
+* SSD1306 OLED displays system state and faults.
 
-## State Machine & Safety
+## PID Control & Complementary Filter
+### Why did I PID Control for the motors?
+Motors do not naturally spin at the exact same speed. For a small robot like mine, that might not be an issue if it is not driving for too long. But for a larger project or one that needs more reproducible results, this would cause the robot to drift to one side instead of driving straight. So, PID control aims to constantly check each wheel's encoder wheel ticks, compare them to the target speed, then using math, automatically adjust the motor power to fix the error.
 
-The program uses a five-state system: `IDLE`, `ONLINE`, `MANUAL`, `FAULT`, and `RESET_REQUIRED`. The robot only moves and checks sensors when it is in the `MANUAL` state. 
+### Why use a complementary filter for the gyroscope? 
+The MPU6050 accelerometer gets really jittery when the motors vibrate, but the gyroscope slowly drifts over time. Each has their upsides and downsides, so this complementary filter aims to take the pros of each sensor through sensor fusion. Together, both sensors make it so that the robot gets more steady, accurate readings of its actual tilt angles. 
 
-If a sensor reading goes past a set limit, the code forces the system into the `FAULT` state and cuts power to the motors. The robot cannot go right back to work from a fault. A user must press a physical button to enter `RESET_REQUIRED`, and then press it again to clear the fault and return to `IDLE`.
+### How did I discover this?
+I learned the math from YouTube tutorials and random online articles. Honestly, I don't understand most of the theory behind the math quite yet, but I hope to learn that this year in 3rd year. All I know now though, is that code compiles, and the videos were right.
 
-```
-IDLE --(wifi connects)--> ONLINE --(button)--> MANUAL
-                                                |
-                                         fault detected
-                                                v
-RESET_REQUIRED <--(button ack)-- FAULT <-----------+
-    |
- button (confirm clear)
-    v
-   IDLE
-```
+## Safety & State Machine
 
-This code snippet from `fault_system.cpp` shows how the buttons handle the fault states:
+Five states: IDLE, ONLINE, MANUAL, FAULT, and RESET_REQUIRED. The car only moves and checks sensors in MANUAL. 
 
-```cpp
-case FAULT:
-    if (digitalRead(BUTTON_PIN) == LOW) {
-        currentState = RESET_REQUIRED;
-        logState("RESET_REQUIRED");
-        lastState = FAULT;
-    }
-    break;
+If a limit is passed, a FAULT occurs, and the motors stop. You have to press a physical button in the FAULT state to get to RESET_REQUIRED, then press it again to return to IDLE.
 
-case RESET_REQUIRED:
-    if (digitalRead(BUTTON_PIN) == LOW) {
-        faultActive = false;
-        currentState = IDLE;
-        logState("IDLE");
-        lastState = RESET_REQUIRED;
-    }
-    break;
-```
-
-### State Diagram
+## State Diagram
 <div align="left">
   <img width="70%" src="images/state-diagram.png" alt="State diagram">
 </div>
 
 ## Hardware
 
-* **ESP32:** Chosen because it has built-in WiFi, which removes the need for an extra networking module.
-* **Motor Driver:** Uses a dual H-bridge (L298N layout) to control the motors.
-* **I2C Bus:** The OLED screen and the MPU6050 share the same I2C pins because the board has limited pins available.
+* ESP32 has built-in WiFi, so no extra networking module is needed, unlike Arduino.
+* L298N Dual H-bridge motor driver for PID controls.
+* OLED and MPU6050 USE the same I2C pins due to limits with the board. I realized in version 2 that I should've used SPI instead of I2C, but I2C works. SPI gives each part its own private wires to go faster, while I2C forces them to share the same two wires and cause traffic jams.
 
 | Component | Part |
 |-----------|------|
 | Microcontroller | ESP32 |
 | Display | SSD1306 OLED (128x64, I2C) |
-| Orientation Sensor | MPU6050 |
-| Distance Sensor | HC-SR04 |
-| Temperature Sensor | DHT22 |
-| Motor Driver | Dual H-bridge, L298N-style pinout |
+| IMU | MPU6050 |
+| Distance | HC-SR04 |
+| Temp | DHT22 |
+| Motor Driver | L298N-style dual H-bridge |
 
-### Pin Mapping
-| Pin | Component | Role |
-|-----|-----------|------|
-| 12 | HC-SR04 | Trigger |
-| 13 | Push Button | Input |
-| 14 | HC-SR04 | Echo |
-| 23 | DHT22 | Data |
-| 25, 26 | Motor A (IN1, ENA) | Output |
-| 32-35 | Motor B (IN3, IN4, ENB) | Output |
-| I2C (SDA/SCL) | OLED and MPU6050 | Shared Bus |
-
-### Schematic Diagram
+## Schematic Diagram
 <div align="left">
   <img width="70%" src="images/schematic-diagram.png" alt="Schematic diagram">
 </div>
 
-## Fault and Warning Codes
-Code | Source | Description | Trigger Condition
---- | --- | --- | ---
-W01 | HC-SR04 | Obstacle warning | Distance between 15 and 30 cm
-W02 | DHT22 | Temperature warning | Temperature between 35°C and 40°C
-F01 | HC-SR04 | Object jam | Distance under 15 cm for more than 1 second
-F02 | MPU6050 | Tilt fault | Pitch or roll exceeds 30 degrees (not currently active, see Design Notes)
-F03 | DHT22 | Overtemperature | Temperature at or above 40°C
-F04 | Watchdog | Connection lost | No ping from dashboard in 500ms
-
 ## Setup
-1. Clone the repo and open it in the Arduino IDE or PlatformIO.
-2. Install `Adafruit_SSD1306`, `Adafruit_GFX`, `Adafruit_MPU6050`, `Adafruit_Sensor`, the DHT sensor library, `NewPing`, `ArduinoJson`, and `WebSocketsServer` through the Library Manager.
-3. Select the ESP32 board and COM port, upload, then check the serial monitor for the board's IP address. Open that address in a browser to load the dashboard.
+1. Clone repo and open in PlatformIO or Arduino IDE.
+2. Install the following libraries: Adafruit SSD1306, Adafruit GFX, Adafruit MPU6050, Adafruit Sensor, DHT library, NewPing, ArduinoJson, and WebSocketsServer.
+3. Select board and COM port, upload, and check your serial monitor for the IP address to load the dashboard.
 
-## Design Choices & Findings
-**Broadcast vs. targeted messaging.** Telemetry and fault messages are sent with `broadcastTXT()` rather than tracked per client ID. This keeps the networking code simple, but any browser on the network can connect and issue drive commands, and multiple simultaneous connections have no arbitration between them. Session tokens would fix this and are out of scope for the current build.
-
-**WebSocket over MQTT.** A single persistent WebSocket connection was sufficient for one board talking to one dashboard; MQTT's broker model wasn't necessary at this scale.
-
-**Tilt fault not wired.** F02 does not currently trigger. `runManual()` is called with pitch and roll hardcoded to `0.0` in `stateLogic()`, so the fault check never receives live data, even though `processIMU()` is computing real orientation values elsewhere. This is a known gap, not an intentional omission.
-
-**Duplicate fault removed.** An earlier version included a dedicated motor-stall fault. It was removed because HC-SR04-based jam detection (F01) already covers the same failure case, making the stall check redundant.
-
-## Next Steps
-- Wire the live IMU output into the tilt fault check in place of the hard-coded 0.0 placeholder
-- Replace simulated PID feedback (fixed encoder ticks) with real encoder input to close the control loop
-- Add authentication to the dashboard so only one client can control the robot at a time
+## Notes
+* WebSockets are used instead of MQTT because MQTT needs a broker setup that is too much for this small project, and outside of my skill set.
+* Telemetry is broadcasted using broadcastTXT, but I realized multiple browsers could technically connect to the local host. A commercial project ordinarily fix this with  tokens, but that's out of my scope here.
+* Tilt fault (F02) does not use the real IMU function's output yet. For now, it has hardcoded values of 0.0.
+* Motor stall fault (F05) was removed because the distance sensor fault (F01) already covers it.
