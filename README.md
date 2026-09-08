@@ -10,10 +10,9 @@ Groundstation is an ESP32 firmware project for a WiFi-controlled robot. It uses 
 ![Status](https://img.shields.io/badge/Status-Complete-success?style=flat-square)
 
 ### Wokwi Simulation
-<!-- add Wokwi diagram/link here -->
-
-### Schematic Diagram
-<!-- add KiCad schematic image here -->
+<div align="left">
+  <img width="70%" src="images/wokwi-simulation.png" alt="Wokwi State Diagram">
+</div>
 
 ## What It Does
 
@@ -64,6 +63,11 @@ case RESET_REQUIRED:
     break;
 ```
 
+### State Diagram
+<div align="left">
+  <img width="70%" src="images/state-diagram.png" alt="State diagram">
+</div>
+
 ## Hardware
 
 * **ESP32:** Chosen because it has built-in WiFi, which removes the need for an extra networking module.
@@ -90,8 +94,10 @@ case RESET_REQUIRED:
 | 32-35 | Motor B (IN3, IN4, ENB) | Output |
 | I2C (SDA/SCL) | OLED and MPU6050 | Shared Bus |
 
-### Physical Build
-<!-- add photos of the finished robot here -->
+### Schematic Diagram
+<div align="left">
+  <img width="70%" src="images/schematic-diagram.png" alt="Schematic diagram">
+</div>
 
 ## Fault and Warning Codes
 Code | Source | Description | Trigger Condition
