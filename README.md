@@ -1,6 +1,6 @@
 # Groundstation
 
-ESP32 firmware for a WiFi-controlled robot using sensor fusion and a PID control loop. Uses a finite state machine for sensor data, a web dashboard, and fault handling.
+This is an ESP32-based project for a WiFi-controlled car using sensor fusion and PID control. It uses a finite state machine to define the car's behaviour, sensor data, a basic web dashboard, and fault handling.
 
 ![Platform](https://img.shields.io/badge/Platform-ESP32-%233186A0?style=flat-square)
 ![Environment](https://img.shields.io/badge/Environment-VSCode-007ACC?style=flat-square)
@@ -36,7 +36,7 @@ I learned the math from YouTube tutorials and random online articles. Honestly, 
 
 ## Safety & State Machine
 
-Five states: IDLE, ONLINE, MANUAL, FAULT, and RESET_REQUIRED. The car only moves and checks sensors in MANUAL. 
+The project has 5 states: IDLE, ONLINE, MANUAL, FAULT, and RESET_REQUIRED. The car only moves and checks sensors in MANUAL. 
 
 If a limit is passed, a FAULT occurs, and the motors stop. You have to press a physical button in the FAULT state to get to RESET_REQUIRED, then press it again to return to IDLE.
 
