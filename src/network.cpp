@@ -7,14 +7,17 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 
+// wifi credentials for testing in simulator
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASSWORD ""
 #define WIFI_CHANNEL 6
 
+// web server on port 80 and websocket server on port 81
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
 unsigned long lastPingTime;
 
+// dashboard html user interface with async fetch and websocket control
 String web = R"HTML(
   <html>
     <body>
@@ -31,6 +34,7 @@ String web = R"HTML(
       <button onclick="sendCmd('RESET')">RESET System</button><br><br>
 
       <script>
+        // websocket connection for real-time telemetry and fault messages
         var connection = new WebSocket('ws://' + location.hostname + ':8181/');
 
         function sendCmd(cmd) {
@@ -39,6 +43,7 @@ String web = R"HTML(
           }
         }
 
+        // wasd keyboard shortcuts for manual drive testing
         document.addEventListener('keydown', function(event) {
           if(event.key === 'w' || event.key === 'W') sendCmd('W');
           if(event.key === 'a' || event.key === 'A') sendCmd('A');
@@ -47,10 +52,12 @@ String web = R"HTML(
           if(event.key === ' ') sendCmd('STOP'); 
         });
 
+        // periodic ping to keep watchdog alive
         setInterval(function() {
           sendCmd('ping');
         }, 200);
 
+        // handle incoming websocket text messages
         connection.onmessage = function(event) {
           if (event.data.startsWith('F') || event.data.startsWith('W')) {
             document.getElementById("faultCode").innerText = event.data;
@@ -64,6 +71,7 @@ String web = R"HTML(
 )HTML";
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  // handle websocket connection events and client payloads
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.println("WS: DISCONNECTED");
@@ -75,6 +83,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       String msg = String((char*)payload, length);
       Serial.println(msg);
 
+      // evaluate incoming dashboard control commands
       if (msg == "W") Serial.println("Would drive forward");
       else if (msg == "S") Serial.println("Would drive backward");
       else if (msg == "A") Serial.println("Would turn left");
@@ -94,6 +103,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void initNetwork() {
+  // configure station mode and begin wifi connection
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
 
@@ -106,11 +116,12 @@ void initNetwork() {
   Serial.println("Connected");
   Serial.println(WiFi.localIP());
 
-    server.on("/", []() {
+  // setup http server root route
+  server.on("/", []() {
     server.send(200, "text/html", web);
   });
 
-  server.begin(); 
+  server.begin();  
   webSocket.begin(); 
   webSocket.onEvent(webSocketEvent); 
 
@@ -118,12 +129,14 @@ void initNetwork() {
 }
 
 void updateNetwork() {
+  // process incoming client and websocket requests
   server.handleClient();
   webSocket.loop();
   delay(2);
 }
 
 void sendTelemetry(float currentPitch, float currentRoll) {
+    // build telemetry json string payload
     String json = R"json({
         "state": ")" + getStateString() + R"json(",
         "speed_left": "N/A",
@@ -142,6 +155,7 @@ void sendTelemetry(float currentPitch, float currentRoll) {
 }
 
 void handleTelemetry(WebSocketsServer &webSocket, float currentPitch, float currentRoll) {
+  // broadcast telemetry over websocket every 100ms
   static unsigned long lastBroadcast = 0;
 
   if (millis() - lastBroadcast >= 100) {
@@ -151,6 +165,7 @@ void handleTelemetry(WebSocketsServer &webSocket, float currentPitch, float curr
 }
 
 void triggerAlert(const char* errorCode) {
+    // print error code and broadcast via websocket
     Serial.println(errorCode); 
     webSocket.broadcastTXT(errorCode);
 }

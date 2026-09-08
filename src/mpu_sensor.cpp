@@ -7,9 +7,11 @@
 #include <Wire.h>
 #include <cmath>
 
+// mpu6050 sensor instance
 Adafruit_MPU6050 mpu;
 
 void initIMU() {
+    // wait until mpu6050 is connected and responsive
     while (!mpu.begin()) {
         Serial.println("MPU6050 not connected!");
         delay(1000);
@@ -22,15 +24,15 @@ void initIMU() {
     // set gyro range to +- 500 deg/s
     mpu.setGyroRange(MPU6050_RANGE_500_DEG);
 
-    // set filter bandwidth to 21 Hz
+    // set filter bandwidth to 21 hz
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-    // Add a delay for stability
+    // add a delay for sensor stability
     delay(100);
 }
 
 void processIMU() {
-    //Get raw data
+    // get raw sensor data events
     sensors_event_t a, g, temp;
 
     static double roll, pitch;
@@ -42,21 +44,21 @@ void processIMU() {
 
     mpu.getEvent(&a, &g, &temp);
 
-    // m/s
+    // accelerometer magnitudes in m/s^2
     ax_mag = a.acceleration.x;
     ay_mag = a.acceleration.y;
     az_mag = a.acceleration.z;
 
     a_mag = sqrt(pow(ax_mag, 2) + pow(ay_mag, 2) + pow(az_mag, 2));
 
-    // deg/s
+    // gyroscope rates converted to deg/s
     gx_deg = g.gyro.x * 180.0 / M_PI;
     gy_deg = g.gyro.y * 180.0 / M_PI;
 
     dt = (float)(millis() - t) / 1000.0;
     t = millis();
 
-    //Sensor Fusion
+    // perform sensor fusion calculation
     alpha = 0.98f;
 
     ax_deg = acos(ax_mag / a_mag) * 180.0 / M_PI;

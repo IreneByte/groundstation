@@ -19,7 +19,7 @@
 #define IN3 32
 #define IN4 35
 
-//* COMPONENT CONFIGURATIONS
+//* component configurations
 NewPing sensor(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
 long distance;
 unsigned long objectDetectedTime = 0;
@@ -30,6 +30,7 @@ float temperature;
 const int distanceThreshold = 15;
 const float tempThreshold = 40.0;
 
+// finite state machine states
 enum State {
     IDLE,
     ONLINE, 
@@ -41,6 +42,7 @@ enum State {
 State currentState = IDLE;
 State lastState = RESET_REQUIRED;
 
+// fault monitoring
 const char* currentFault = "None";
 int lastButtonReading = HIGH;
 
@@ -49,18 +51,20 @@ static bool motorStalled = false;
 
 unsigned long lastPingTime = 0;
 
-// PID Variables
+// pid control variables
 float TARGET_SPEED = 50.0;
 unsigned long lastPidTime = 0;
 long leftEncoderTicks = 0;
 long rightEncoderTicks = 0;
 
 void initFSM() {
+    // initialize dht sensor and serial communication
     dht.begin();
     Serial.begin(115200);
 }
 
 void stateTransitions() {
+    // handle transitions between fsm states
     switch(currentState) {
         case IDLE:
             if (WiFi.status() == WL_CONNECTED) {
@@ -109,6 +113,7 @@ void stateTransitions() {
 }
 
 void stateLogic() {
+    // execute actions corresponding to current fsm state
     switch(currentState) {
         case IDLE:
             runIdle();
@@ -120,7 +125,7 @@ void stateLogic() {
         
         case MANUAL:
             runManual(0.0, 0.0);
-            runPID(); // Run PID during manual control
+            runPID(); // run pid during manual control mode
             break;
 
         case FAULT:
@@ -137,6 +142,7 @@ void stateLogic() {
 }
 
 String getStateString() {
+    // return string representation of current state
     switch(currentState) {
         case IDLE: return "IDLE";
         case ONLINE: return "ONLINE";
@@ -148,6 +154,7 @@ String getStateString() {
 }
 
 void logState(String state) {
+    // print state change to serial monitor
     Serial.print(F("STATE: "));
     Serial.println(state);
 }
@@ -156,6 +163,7 @@ void runIdle() {}
 void runOnline() {}
 
 void stopMotors() {
+    // stop all motor driver pins and clear pwm outputs
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, LOW);
     digitalWrite(IN3, LOW);
@@ -165,11 +173,13 @@ void stopMotors() {
 }
 
 void runManual(float pitch, float roll) {
+    // read distance and temperature sensors
     distance = sensor.ping_cm();
 
     temperature = dht.readTemperature();
     if (isnan(temperature)) return;
 
+    // check warning thresholds
     if (distance > 15 && distance < 30) {
         triggerAlert("W01: Obstacle 15-30 cm");
         printOLED("W01: Obstacle");
@@ -180,6 +190,7 @@ void runManual(float pitch, float roll) {
         printOLED("W02: Temperature");
     }
 
+    // check critical fault triggers
     if (distance <= distanceThreshold) {
         if (objectDetectedTime == 0) {
             objectDetectedTime = millis();
@@ -215,6 +226,7 @@ void runManual(float pitch, float roll) {
 }
 
 void runFault() {
+    // halt system and display active fault
     stopMotors();
     printOLED(currentFault);
 }
@@ -222,6 +234,7 @@ void runFault() {
 void runReset() {}
 
 float calculatePID(float setPoint, float processValue) {
+    // compute pid control output value
     float output, error;
     static float reset = 0.0;
     static float lastError = 0.0;
@@ -237,10 +250,11 @@ float calculatePID(float setPoint, float processValue) {
 }
 
 void runPID() {
+    // run pid loop every 100ms
     if (millis() - lastPidTime >= 100) {
         lastPidTime = millis();
 
-        // Simulated loop ticks so math runs cleanly without hardware
+        // simulated loop ticks so math runs cleanly without hardware
         leftEncoderTicks += 10;
         rightEncoderTicks += 10;
 
