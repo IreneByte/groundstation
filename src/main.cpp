@@ -4,7 +4,6 @@
 #include "fault_system.h"
 
 #include <Arduino.h>
-#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 

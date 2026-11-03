@@ -40,14 +40,11 @@ enum State {
 };
 
 State currentState = IDLE;
-State lastState = RESET_REQUIRED;
 
 // fault monitoring
 const char* currentFault = "None";
-int lastButtonReading = HIGH;
 
 static bool faultActive = false;
-static bool motorStalled = false;
 
 unsigned long lastPingTime = 0;
 
@@ -60,7 +57,6 @@ long rightEncoderTicks = 0;
 void initFSM() {
     // initialize dht sensor and serial communication
     dht.begin();
-    Serial.begin(115200);
 }
 
 void stateTransitions() {
@@ -70,7 +66,6 @@ void stateTransitions() {
             if (WiFi.status() == WL_CONNECTED) {
                 currentState = ONLINE;
                 logState("ONLINE");
-                lastState = IDLE;
             }
             break;
         
@@ -78,7 +73,6 @@ void stateTransitions() {
             if (digitalRead(BUTTON_PIN) == LOW) {
                 currentState = MANUAL;  
                 logState("MANUAL");
-                lastState = ONLINE;
             }
             break;
         
@@ -86,7 +80,6 @@ void stateTransitions() {
             if (faultActive) {
                 currentState = FAULT;   
                 logState("FAULT");
-                lastState = MANUAL;
             }
             break;
         
@@ -94,7 +87,6 @@ void stateTransitions() {
             if (digitalRead(BUTTON_PIN) == LOW) {
                 currentState = RESET_REQUIRED;
                 logState("RESET_REQUIRED");
-                lastState = FAULT;
             }
             break;
         
@@ -103,7 +95,6 @@ void stateTransitions() {
                 faultActive = false;
                 currentState = IDLE;
                 logState("IDLE");
-                lastState = RESET_REQUIRED;
             }
             break;
 
@@ -253,10 +244,6 @@ void runPID() {
     // run pid loop every 100ms
     if (millis() - lastPidTime >= 100) {
         lastPidTime = millis();
-
-        // simulated loop ticks so math runs cleanly without hardware
-        leftEncoderTicks += 10;
-        rightEncoderTicks += 10;
 
         float leftPwm = calculatePID(TARGET_SPEED, leftEncoderTicks);
         float rightPwm = calculatePID(TARGET_SPEED, rightEncoderTicks);

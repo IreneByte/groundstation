@@ -2,7 +2,6 @@
 #include "fault_system.h"
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>

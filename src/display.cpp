@@ -34,21 +34,3 @@ void printOLED(const char* message) {
   oled.display();
 }
 
-void updateOLEDStatus(String state, const char* fault) {
-  // clear screen for updated runtime state and faults
-  oled.clearDisplay();
-  oled.setTextSize(1);
-  oled.setTextColor(SSD1306_WHITE);
-
-  // print current finite state machine state
-  oled.setCursor(0, 0);
-  oled.print(F("State: "));
-  oled.println(state);
-
-  // print current active fault code
-  oled.setCursor(0, 16);
-  oled.print(F("Fault: "));
-  oled.println(fault);
-
-  oled.display();
-}
