@@ -3,3 +3,6 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# WiFi settings, copy include/secrets.example.h to make your own
+include/secrets.h

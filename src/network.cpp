@@ -6,10 +6,12 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 
-// wifi credentials for testing in simulator
-#define WIFI_SSID "Wokwi-GUEST"
-#define WIFI_PASSWORD ""
-#define WIFI_CHANNEL 6
+// WiFi name/password live in include/secrets.h (not committed).
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
+#error "Copy include/secrets.example.h to include/secrets.h and fill it in"
+#endif
 
 // web server on port 80 and websocket server on port 81
 WebServer server(80);

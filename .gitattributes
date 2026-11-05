@@ -1,2 +1,6 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Store every text file with LF line endings (also on Windows checkouts)
+* text=auto eol=lf
+
+# binary files, never touch them
+*.png binary
+*.pdf binary
