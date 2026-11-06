@@ -1,5 +1,7 @@
+#include "fault_system.h"
 #include "network.h"
 #include "display.h"
+#include "mpu_sensor.h"
 
 #include <DHT.h>
 #include <NewPing.h>
@@ -15,9 +17,10 @@
 #define ENA 26
 #define IN1 25
 #define IN2 33
-#define ENB 34
+// ENB/IN4 were on 34/35, which are input-only on the ESP32
+#define ENB 27
 #define IN3 32
-#define IN4 35
+#define IN4 4
 
 //* component configurations
 NewPing sensor(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
@@ -44,9 +47,8 @@ State currentState = IDLE;
 // fault monitoring
 const char* currentFault = "None";
 
-static bool faultActive = false;
-
-unsigned long lastPingTime = 0;
+// not static: network.cpp uses it too (extern in network.h)
+bool faultActive = false;
 
 // pid control variables
 float TARGET_SPEED = 50.0;
@@ -55,8 +57,11 @@ long leftEncoderTicks = 0;
 long rightEncoderTicks = 0;
 
 void initFSM() {
-    // initialize dht sensor and serial communication
+    // set up sensor and motor pins
     dht.begin();
+    pinMode(BUTTON_PIN, INPUT_PULLUP);  // button goes to GND, LOW = pressed
+    const int motorPins[] = {ENA, IN1, IN2, ENB, IN3, IN4};
+    for (int pin : motorPins) pinMode(pin, OUTPUT);
 }
 
 void stateTransitions() {
@@ -115,7 +120,7 @@ void stateLogic() {
             break;
         
         case MANUAL:
-            runManual(0.0, 0.0);
+            runManual(getPitch(), getRoll());
             runPID(); // run pid during manual control mode
             break;
 

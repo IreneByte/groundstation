@@ -13,3 +13,5 @@ void runOnline();
 void runManual(float pitch, float roll);
 void runFault();
 void runReset();
+void stopMotors();
+void runPID();

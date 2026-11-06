@@ -2,3 +2,5 @@
 
 void initIMU();
 void updateIMU();
+float getPitch();
+float getRoll();

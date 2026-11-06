@@ -6,12 +6,19 @@
 #include <Wire.h>
 #include <cmath>
 
-// mpu6050 sensor instance
+// mpu6050 sensor instance (on its own i2c bus, see diagram.json)
 Adafruit_MPU6050 mpu;
+#define IMU_SDA 18
+#define IMU_SCL 19
+
+static double roll, pitch;
 
 void initIMU() {
+    // mpu6050 is wired to 18/19, not the default 21/22
+    Wire1.begin(IMU_SDA, IMU_SCL);
+
     // wait until mpu6050 is connected and responsive
-    while (!mpu.begin()) {
+    while (!mpu.begin(MPU6050_I2CADDR_DEFAULT, &Wire1)) {
         Serial.println("MPU6050 not connected!");
         delay(1000);
     }
@@ -30,11 +37,10 @@ void initIMU() {
     delay(100);
 }
 
-void processIMU() {
+void updateIMU() {
     // get raw sensor data events
     sensors_event_t a, g, temp;
 
-    static double roll, pitch;
     double ax_mag, ay_mag, az_mag, a_mag;
     double ax_deg, ay_deg;
     double gx_deg, gy_deg;
@@ -65,6 +71,7 @@ void processIMU() {
 
     pitch = alpha * (pitch + gx_deg * dt) + (1.0f - alpha) * ax_deg;
     roll = alpha * (roll + gy_deg * dt) + (1.0f - alpha) * ay_deg;
-
-    delay(100);
 }
+
+float getPitch() { return pitch; }
+float getRoll() { return roll; }
