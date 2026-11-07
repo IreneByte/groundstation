@@ -2,6 +2,7 @@
 #include "network.h"
 #include "display.h"
 #include "mpu_sensor.h"
+#include "pid.h"
 
 #include <DHT.h>
 #include <NewPing.h>
@@ -50,8 +51,10 @@ const char* currentFault = "None";
 // not static: network.cpp uses it too (extern in network.h)
 bool faultActive = false;
 
-// pid control variables
-float TARGET_SPEED = 50.0;
+// pid control variables, one pid per wheel
+Pid leftPid;
+Pid rightPid;
+float TARGET_SPEED = 60.0; // encoder ticks per second
 unsigned long lastPidTime = 0;
 long leftEncoderTicks = 0;
 long rightEncoderTicks = 0;
@@ -62,6 +65,10 @@ void initFSM() {
     pinMode(BUTTON_PIN, INPUT_PULLUP);  // button goes to GND, LOW = pressed
     const int motorPins[] = {ENA, IN1, IN2, ENB, IN3, IN4};
     for (int pin : motorPins) pinMode(pin, OUTPUT);
+
+    // gains: kp, ki, kd, output limit 0..255 (pwm)
+    pidInit(leftPid, 1.5, 4.0, 0.02, 0, 255);
+    pidInit(rightPid, 1.5, 4.0, 0.02, 0, 255);
 }
 
 void stateTransitions() {
@@ -229,34 +236,23 @@ void runFault() {
 
 void runReset() {}
 
-float calculatePID(float setPoint, float processValue) {
-    // compute pid control output value
-    float output, error;
-    static float reset = 0.0;
-    static float lastError = 0.0;
-    float K = 1.0;
-    float tau_i = 5.0;
-
-    error = setPoint - processValue;
-    reset = reset + K/tau_i * error;
-    output = K * error + reset + K/tau_i * (error - lastError);
-    lastError = error;
-
-    return output;
-}
-
 void runPID() {
     // run pid loop every 100ms
     if (millis() - lastPidTime >= 100) {
+        float dt = (millis() - lastPidTime) / 1000.0;
         lastPidTime = millis();
 
-        float leftPwm = calculatePID(TARGET_SPEED, leftEncoderTicks);
-        float rightPwm = calculatePID(TARGET_SPEED, rightEncoderTicks);
-
+        // speed in ticks per second
+        float leftSpeed = leftEncoderTicks / dt;
+        float rightSpeed = rightEncoderTicks / dt;
         leftEncoderTicks = 0;
         rightEncoderTicks = 0;
 
-        analogWrite(ENA, constrain((int)leftPwm, 0, 255));
-        analogWrite(ENB, constrain((int)rightPwm, 0, 255));
+        // each wheel has its own pid state now (lib/gs_core/pid.h)
+        float leftPwm = pidUpdate(leftPid, TARGET_SPEED, leftSpeed, dt);
+        float rightPwm = pidUpdate(rightPid, TARGET_SPEED, rightSpeed, dt);
+
+        analogWrite(ENA, (int)leftPwm);
+        analogWrite(ENB, (int)rightPwm);
     }
 }

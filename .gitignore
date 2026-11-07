@@ -6,3 +6,6 @@
 
 # WiFi settings, copy include/secrets.example.h to make your own
 include/secrets.h
+
+# host test binaries
+host_tests/build/
