@@ -1,17 +1,18 @@
-#define _USE_MATH_DEFINES
-
 #include <Arduino.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
-#include <cmath>
+
+#include "comp_filter.h"
 
 // mpu6050 sensor instance (on its own i2c bus, see diagram.json)
 Adafruit_MPU6050 mpu;
 #define IMU_SDA 18
 #define IMU_SCL 19
 
-static double roll, pitch;
+// complementary filter state (math is in lib/gs_core/comp_filter.cpp)
+static TiltFilter filter;
+static unsigned long lastImuTime = 0;
 
 void initIMU() {
     // mpu6050 is wired to 18/19, not the default 21/22
@@ -33,45 +34,28 @@ void initIMU() {
     // set filter bandwidth to 21 hz
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-    // add a delay for sensor stability
-    delay(100);
+    // alpha 0.98: trust the gyro short term, the accel long term
+    filterInit(filter, 0.98f);
 }
 
 void updateIMU() {
-    // get raw sensor data events
+    // get raw sensor data events (m/s^2 and rad/s)
     sensors_event_t a, g, temp;
-
-    double ax_mag, ay_mag, az_mag, a_mag;
-    double ax_deg, ay_deg;
-    double gx_deg, gy_deg;
-    static unsigned long t;
-    float dt, alpha;
-
     mpu.getEvent(&a, &g, &temp);
 
-    // accelerometer magnitudes in m/s^2
-    ax_mag = a.acceleration.x;
-    ay_mag = a.acceleration.y;
-    az_mag = a.acceleration.z;
+    ImuSample s;
+    s.ax = a.acceleration.x;
+    s.ay = a.acceleration.y;
+    s.az = a.acceleration.z;
+    s.gx = g.gyro.x;
+    s.gy = g.gyro.y;
+    s.gz = g.gyro.z;
 
-    a_mag = sqrt(pow(ax_mag, 2) + pow(ay_mag, 2) + pow(az_mag, 2));
-
-    // gyroscope rates converted to deg/s
-    gx_deg = g.gyro.x * 180.0 / M_PI;
-    gy_deg = g.gyro.y * 180.0 / M_PI;
-
-    dt = (float)(millis() - t) / 1000.0;
-    t = millis();
-
-    // perform sensor fusion calculation
-    alpha = 0.98f;
-
-    ax_deg = acos(ax_mag / a_mag) * 180.0 / M_PI;
-    ay_deg = acos(ay_mag / a_mag) * 180.0 / M_PI;
-
-    pitch = alpha * (pitch + gx_deg * dt) + (1.0f - alpha) * ax_deg;
-    roll = alpha * (roll + gy_deg * dt) + (1.0f - alpha) * ay_deg;
+    // time since the last sample. the first call starts from the accel angles
+    float dt = (millis() - lastImuTime) / 1000.0f;
+    lastImuTime = millis();
+    filterUpdate(filter, s, dt);
 }
 
-float getPitch() { return pitch; }
-float getRoll() { return roll; }
+float getPitch() { return filter.pitchDeg; }
+float getRoll() { return filter.rollDeg; }

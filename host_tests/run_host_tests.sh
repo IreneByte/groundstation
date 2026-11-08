@@ -10,7 +10,7 @@ mkdir -p "$OUT"
 FLAGS="-std=c++17 -Wall -Wextra -Werror -O1 -g -Ilib/gs_core"
 CORE="lib/gs_core/*.cpp"
 
-for t in test_pid; do
+for t in test_pid test_filter; do
   echo "== $t"
   # shellcheck disable=SC2086
   g++ $FLAGS host_tests/$t.cpp $CORE -o "$OUT/$t"
