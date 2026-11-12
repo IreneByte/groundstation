@@ -24,8 +24,7 @@ void loop() {
   updateIMU();
 
   // update finite state machine transitions and logic
-  stateTransitions();
-  stateLogic();
+  updateFSM();
 
   // send telemetry updates over websocket
   handleTelemetry(webSocket, getPitch(), getRoll());

@@ -90,10 +90,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       else if (msg == "A") Serial.println("Would turn left");
       else if (msg == "D") Serial.println("Would turn right");
       else if (msg == "STOP") Serial.println("Would stop");
-      else if (msg == "ACK") Serial.println("Dashboard ACK received");
+      else if (msg == "ACK") {
+        Serial.println("Dashboard ACK received");
+        ackRequested = true;   // fsm uses it on the next loop
+      }
       else if (msg == "RESET") {
         Serial.println("Dashboard RESET received");
-        faultActive = false;
+        resetRequested = true;
       }
       else if (msg == "ping") lastPingTime = millis();
       break;

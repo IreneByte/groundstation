@@ -3,15 +3,7 @@
 #include <Arduino.h>
 
 void initFSM();
-void stateTransitions();
-void stateLogic();
-
-void logState(String state);
+void updateFSM();       // sensors, fault checks, fsm step, motors
 String getStateString();
-void runIdle();
-void runOnline();
-void runManual(float pitch, float roll);
-void runFault();
-void runReset();
 void stopMotors();
 void runPID();
