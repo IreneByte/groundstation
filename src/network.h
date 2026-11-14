@@ -1,18 +1,19 @@
 #pragma once
-
+// WiFi, HTTP page (port 80) and WebSocket (port 81).
+// Only netTask touches the WebSocket library, because it is not
+// thread safe. Other tasks hand it lines through g_txQueue.
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
-#include <WebSocketsServer.h>
 
-extern WebSocketsServer webSocket;
-extern bool ackRequested;
-extern bool resetRequested;
-extern unsigned long lastPingTime;
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
-void initNetwork();
-void updateNetwork();
-String buildTelemetryJSON(float currentPitch, float currentRoll);
-void handleTelemetry(WebSocketsServer &webSocket, float currentPitch, float currentRoll);
-void triggerAlert(const char* errorCode);
+// one telemetry line waiting to be sent
+struct TxLine {
+  char text[160];
+};
+
+const int TX_QUEUE_LEN = 8;  // ~0.8 s of telemetry
+extern QueueHandle_t g_txQueue;
+
+void netInit();           // start WiFi (does not wait for it)
+void netTask(void* arg);  // serves HTTP + WebSocket every 10 ms

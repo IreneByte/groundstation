@@ -1,36 +1,43 @@
-#include <Arduino.h>
+#include "display.h"
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <WiFi.h>
+#include <Arduino.h>
 #include <Wire.h>
 
-// oled display setup (128x64 i2c address 0x3C)
+// 128x64 OLED at I2C address 0x3C
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 #define SCREEN_ADDRESS 0x3C
 
-// initialize ssd1306 oled display instance
-Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+static Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+static bool s_oledOk = false;
 
-void initOLED() {
-  // test i2c communication with ssd1306 display
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    while (1); // infinite loop if display init fails
+bool oledInit() {
+  s_oledOk = oled.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
+  if (!s_oledOk) {
+    // keep running without a screen instead of hanging forever
+    Serial.println("#OLED SSD1306 not found");
+    return false;
   }
-  oled.clearDisplay(); 
-  oled.setTextSize(1); 
-  oled.setTextColor(SSD1306_WHITE); 
-  oled.setCursor(0, 2); 
-  oled.println(WiFi.localIP()); // print local ip for debugging
-  oled.display(); 
+  oled.clearDisplay();
+  oled.setTextSize(1);
+  oled.setTextColor(SSD1306_WHITE);
+  oled.display();
+  return true;
 }
 
-void printOLED(const char* message) {
-  // clear screen and display custom status message
+void oledShow(const char* state, const char* fault, const char* ip) {
+  if (!s_oledOk) return;
   oled.clearDisplay();
-  oled.println(F(message));
+  oled.setCursor(0, 0);
+  oled.print("State: ");
+  oled.println(state);
+  oled.setCursor(0, 16);
+  oled.print("Fault: ");
+  oled.println(fault);
+  oled.setCursor(0, 32);
+  oled.println(ip);
   oled.display();
 }
-
