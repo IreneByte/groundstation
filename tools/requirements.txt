@@ -1,0 +1,4 @@
+# needed for the plot
+matplotlib
+# only needed for --serial
+pyserial

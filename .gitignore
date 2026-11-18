@@ -7,5 +7,7 @@
 # WiFi settings, copy include/secrets.example.h to make your own
 include/secrets.h
 
-# host test binaries
+# host test binaries and groundstation output
 host_tests/build/
+tools/out/
+__pycache__/
